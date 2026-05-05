@@ -19,7 +19,7 @@
   <!-- Voice Recorder -->
   <div class="voice-recorder mb-2">
     <div style="font-size:0.95rem; font-weight:600; color:var(--navy); margin-bottom:0.75rem;">🎤 Voice Complaint (Sarvam AI)</div>
-    <p class="text-small text-muted" style="margin-bottom:1rem;">Press the microphone to record your complaint in your language. It will be auto-transcribed.</p>
+    <p class="text-small text-muted" style="margin-bottom:1rem;">Press the microphone to record your complaint in your language. It will be auto-transcribed and appended to your description below.</p>
 
     <div style="display:flex; align-items:center; gap:1rem; justify-content:center; flex-wrap:wrap;">
       <div style="text-align:center;">
@@ -44,7 +44,7 @@
     </div>
 
     <div id="transcribingMsg" style="display:none; margin-top:0.75rem; color:var(--saffron); font-size:0.875rem; font-weight:600;">
-      ⏳ Transcribing your voice…
+      ⏳ Transcribing your voice... (Longer recordings may take a moment)
     </div>
   </div>
 
@@ -214,11 +214,13 @@ recordBtn.addEventListener('click', async () => {
     mediaRecorder = new MediaRecorder(stream);
     audioChunks   = [];
     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    
     mediaRecorder.onstart = () => {
       recordBtn.classList.add('recording');
       recordBtn.textContent = '⏹️';
       statusEl.textContent = 'Recording… click to stop';
     };
+    
     mediaRecorder.onstop = async () => {
       recordBtn.classList.remove('recording');
       recordBtn.textContent = '🎤';
@@ -226,7 +228,7 @@ recordBtn.addEventListener('click', async () => {
       transcMsg.style.display = 'block';
       stream.getTracks().forEach(t => t.stop());
 
-      const blob    = new Blob(audioChunks, { type: 'audio/webm' });
+      const blob     = new Blob(audioChunks, { type: 'audio/webm' });
       const formData = new FormData();
       formData.append('audio', blob, 'voice.webm');
       formData.append('lang', document.getElementById('voice_lang').value);
@@ -234,18 +236,29 @@ recordBtn.addEventListener('click', async () => {
       try {
         const resp = await fetch('{{ url_for("voice_complaint") }}', { method: 'POST', body: formData });
         const data = await resp.json();
+        
         if (data.transcript) {
-          document.getElementById('description').value = data.transcript;
+          const descEl = document.getElementById('description');
+          // Check if there's already text to append to securely
+          if (descEl.value.trim() !== '') {
+            descEl.value = descEl.value.trim() + ' ' + data.transcript;
+          } else {
+            descEl.value = data.transcript;
+          }
+
+          // Auto-select category if detected
           if (data.suggested_category) {
             const sel = document.getElementById('category');
             [...sel.options].forEach(o => { if (o.value === data.suggested_category) o.selected = true; });
           }
           statusEl.textContent = '✅ Transcription complete!';
         } else {
-          statusEl.textContent = data.error || 'Transcription failed.';
+          statusEl.textContent = '❌ Transcription failed.';
+          alert(data.error || 'Transcription failed. Please try again.');
         }
       } catch (err) {
-        statusEl.textContent = 'Server error. Please type your complaint.';
+        statusEl.textContent = '❌ Server error.';
+        alert('Could not reach the server to process audio. Please type your complaint instead.');
       }
       transcMsg.style.display = 'none';
     };
