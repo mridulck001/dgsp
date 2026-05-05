@@ -1,7 +1,34 @@
-<html>
+{% extends "base.html" %}
+{% block title %}{{ code|default('Error') }} {{ message|default('An error occurred') }} – DGSP{% endblock %}
 
-  <body>
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 10vh; margin-bottom: 10vh; text-align: center;">
+  <div class="card" style="padding: 3rem 2rem; border-top: 5px solid var(--saffron, #f97316);">
+    
+    <!-- Error Code Large Display -->
+    <div style="font-size: 6rem; font-weight: 800; color: var(--saffron, #f97316); line-height: 1; margin-bottom: 1rem;">
+      {{ code|default('⚠️') }}
+    </div>
+    
+    <!-- Error Message -->
+    <h1 style="color: var(--navy, #1e3a8a); margin-bottom: 1rem;">
+      {{ message|default('An unexpected error occurred') }}
+    </h1>
+    
+    <!-- Error Detail -->
+    <p style="color: var(--warm-gray, #6b7280); font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
+      {{ detail|default('We are sorry for the inconvenience. Please check the URL or try again later.') }}
+    </p>
+    
+    <!-- Navigation Actions -->
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+      <a href="{{ url_for('index') }}" class="btn btn-primary btn-lg">🏠 Return to Home</a>
+      
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-lg">📊 Go to Dashboard</a>
+      {% endif %}
+    </div>
 
-error aa gya g
-  </body>
-</html>
+  </div>
+</div>
+{% endblock %}
