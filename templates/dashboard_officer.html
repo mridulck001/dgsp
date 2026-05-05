@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Officer Dashboard – DGSP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="{{ url_for('index') }}">Home</a><span class="breadcrumb-sep">›</span><span>Officer Dashboard</span>
+    </div>
+    <h1>👮 Officer Dashboard</h1>
+    <p>{{ current_user.name }} | {{ current_user.village }}, {{ current_user.district }}</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="stat-grid">
+    {% set stat_map = [
+      ('Submitted', 'blue', '📥'),
+      ('Under Review', 'saffron', '🔍'),
+      ('In Progress', 'earth', '⚙️'),
+      ('Resolved', 'green', '✅'),
+    ] %}
+    {% for status, cls, icon in stat_map %}
+    <div class="stat-card {{ cls }}">
+      <div style="font-size:1.4rem; margin-bottom:0.4rem;">{{ icon }}</div>
+      <div class="stat-number">{{ counts.get(status, 0) }}</div>
+      <div class="stat-label">{{ status }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card mt-2">
+    <div class="card-header">
+      <span class="header-icon">📋</span>
+      <h3>Assigned Complaints</h3>
+      <a href="{{ url_for('complaints_list') }}" style="margin-left:auto; color:rgba(255,255,255,0.75); font-size:0.85rem;">View All →</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if complaints %}
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Title</th><th>Category</th><th>Priority</th><th>Status</th><th>Village</th><th>Filed</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in complaints %}
+              <tr>
+                <td><span class="complaint-id">{{ c.complaint_id }}</span></td>
+                <td style="max-width:180px;">{{ c.title | truncate(45) }}</td>
+                <td class="text-small">{{ c.category }}</td>
+                <td>
+                  {% set p = c.get('priority','Medium') %}
+                  <span class="badge badge-priority-{{ p | lower }}">{{ p }}</span>
+                </td>
+                <td>
+                  {% set s = c.status | lower | replace(' ', '-') %}
+                  <span class="badge badge-{{ s }}">{{ c.status }}</span>
+                </td>
+                <td class="text-small text-muted">{{ c.village }}</td>
+                <td class="text-small text-muted">{{ c.created_at.strftime('%d %b') }}</td>
+                <td>
+                  <a href="{{ url_for('view_complaint', complaint_id=c.complaint_id) }}" class="btn btn-primary btn-sm">Update</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">🎉</div>
+          <h3>All caught up!</h3>
+          <p>No complaints in your jurisdiction right now.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+socket.emit('join_officers');
+socket.on('new_complaint', data => {
+  const banner = document.createElement('div');
+  banner.className = 'alert alert-info';
+  banner.innerHTML = `📥 <strong>New Complaint:</strong> ${data.title} from ${data.village} <a href="/complaint/${data.complaint_id}" style="font-weight:600;">View →</a> <button class="alert-close" onclick="this.parentElement.remove()">×</button>`;
+  document.querySelector('.container').prepend(banner);
+});
+</script>
+{% endblock %}

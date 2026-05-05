@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}{{ c.complaint_id }} – DGSP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="{{ url_for('index') }}">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="{{ url_for('complaints_list') }}">Complaints</a><span class="breadcrumb-sep">›</span>
+      <span>{{ c.complaint_id }}</span>
+    </div>
+    <h1>{{ c.title }}</h1>
+    <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-top:0.25rem;">
+      <span class="complaint-id" style="color:rgba(255,255,255,0.8);">{{ c.complaint_id }}</span>
+      {% set s = c.status | lower | replace(' ', '-') %}
+      <span class="badge badge-{{ s }}">{{ c.status }}</span>
+      {% set p = c.get('priority','Medium') %}
+      <span class="badge badge-priority-{{ p | lower }}">{{ p }}</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:1.5rem; align-items:start;">
+
+    <!-- Left column -->
+    <div>
+
+      <!-- Complaint details -->
+      <div class="card mb-2">
+        <div class="card-header"><span class="header-icon">📋</span><h3>Complaint Details</h3></div>
+        <div class="card-body">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem;">
+            <div><div class="text-small text-muted">Category</div><strong>{{ c.category }}</strong></div>
+            <div><div class="text-small text-muted">Language</div><strong>{{ languages.get(c.language, c.language) }}</strong></div>
+            <div><div class="text-small text-muted">Village</div><strong>{{ c.village }}</strong></div>
+            <div><div class="text-small text-muted">District / State</div><strong>{{ c.district }}, {{ c.state }}</strong></div>
+            <div><div class="text-small text-muted">Filed On</div><strong>{{ c.created_at.strftime('%d %B %Y, %I:%M %p') }}</strong></div>
+            <div><div class="text-small text-muted">Last Updated</div><strong>{{ c.updated_at.strftime('%d %B %Y') if c.updated_at else '—' }}</strong></div>
+            {% if c.resolved_at %}
+            <div><div class="text-small text-muted">Resolved On</div><strong style="color:var(--forest);">{{ c.resolved_at.strftime('%d %B %Y') }}</strong></div>
+            {% endif %}
+            {% if c.assigned_to %}
+            <div><div class="text-small text-muted">Assigned To</div><strong>{{ c.assigned_to.name }}</strong></div>
+            {% endif %}
+          </div>
+
+          {% if c.location %}
+          <div style="margin-bottom:0.75rem;"><span class="text-small text-muted">📍 Location: </span><span class="text-small">{{ c.location }}</span></div>
+          {% endif %}
+
+          <div style="background:var(--cream); border-radius:var(--radius); padding:1rem; border:1px solid var(--border);">
+            <div class="text-small text-muted" style="margin-bottom:0.5rem;">Description</div>
+            <p style="margin:0; line-height:1.7; white-space:pre-wrap;">{{ c.description }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attachments -->
+      {% if c.attachments %}
+      <div class="card mb-2">
+        <div class="card-header"><span class="header-icon">📎</span><h3>Attachments ({{ c.attachments | length }})</h3></div>
+        <div class="card-body">
+          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:0.75rem;">
+            {% for att in c.attachments %}
+              {% if att.url and att.url.split('.')[-1].lower() in ['jpg','jpeg','png','gif','webp'] %}
+                <a href="{{ att.url }}" target="_blank">
+                  <img src="{{ att.url }}" alt="{{ att.name }}" style="width:100%; height:110px; object-fit:cover; border-radius:var(--radius); border:1px solid var(--border);">
+                </a>
+              {% else %}
+                <a href="{{ att.url }}" target="_blank" class="btn btn-outline btn-sm">📄 {{ att.name | truncate(20) }}</a>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Comments -->
+      <div class="card mb-2">
+        <div class="card-header"><span class="header-icon">💬</span><h3>Comments ({{ c.comments | length }})</h3></div>
+        <div class="card-body">
+          {% if c.comments %}
+            {% for comment in c.comments %}
+            <div style="display:flex; gap:0.75rem; margin-bottom:1rem; {% if not loop.last %}padding-bottom:1rem; border-bottom:1px solid var(--border);{% endif %}">
+              <div style="width:36px; height:36px; background:{% if comment.role == 'officer' %}var(--saffron){% elif comment.role == 'admin' %}var(--navy){% else %}var(--forest){% endif %}; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; flex-shrink:0; font-size:0.9rem;">
+                {{ comment.author[0].upper() }}
+              </div>
+              <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                  <strong style="font-size:0.88rem;">{{ comment.author }}</strong>
+                  <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <span class="badge badge-role-{{ comment.role }}">{{ comment.role }}</span>
+                    <span class="text-small text-muted">{{ comment.timestamp.strftime('%d %b, %H:%M') if comment.timestamp else '' }}</span>
+                  </div>
+                </div>
+                <p style="margin:0; font-size:0.9rem; line-height:1.5;">{{ comment.text }}</p>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted text-small">No comments yet.</p>
+          {% endif %}
+
+          <!-- Add comment -->
+          <form method="POST" action="{{ url_for('add_comment', complaint_id=c.complaint_id) }}" style="margin-top:1rem;">
+            <div class="form-group" style="margin-bottom:0.75rem;">
+              <label for="comment" style="font-size:0.85rem;">Add a comment</label>
+              <textarea id="comment" name="comment" class="form-control" rows="3"
+                        placeholder="Write your comment or update here…"></textarea>
+            </div>
+            <button type="submit" class="btn btn-navy btn-sm">💬 Post Comment</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Rating (citizens only, resolved complaints) -->
+      {% if current_user.role == 'citizen' and c.status == 'Resolved' and not c.rating %}
+      <div class="card" style="border:2px solid var(--forest);">
+        <div class="card-header" style="background:linear-gradient(135deg,var(--forest) 0%,var(--forest-light) 100%);">
+          <span class="header-icon">⭐</span><h3>Rate This Resolution</h3>
+        </div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('rate_complaint', complaint_id=c.complaint_id) }}">
+            <p class="text-small text-muted mb-2">How satisfied are you with how your complaint was handled?</p>
+            <div class="star-rating mb-2" id="starRating">
+              {% for i in range(1, 6) %}
+                <span class="star" data-val="{{ i }}" onclick="setRating({{ i }})">★</span>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="rating" id="ratingInput" value="0">
+            <div class="form-group">
+              <textarea name="feedback" class="form-control" rows="2" placeholder="Any feedback? (optional)"></textarea>
+            </div>
+            <button type="submit" class="btn btn-success">⭐ Submit Rating</button>
+          </form>
+        </div>
+      </div>
+      {% elif c.rating %}
+      <div class="card" style="border:1px solid var(--forest);">
+        <div class="card-body" style="display:flex; align-items:center; gap:1rem;">
+          <div style="font-size:1.5rem; color:#F5A623;">{'★' * c.rating}{'☆' * (5 - c.rating)}</div>
+          <div>
+            <div style="font-weight:600;">Citizen Rating: {{ c.rating }}/5</div>
+            {% if c.feedback %}<div class="text-small text-muted">{{ c.feedback }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Right column -->
+    <div>
+
+      <!-- Officer actions -->
+      {% if current_user.role in ('officer', 'admin') %}
+      <div class="card mb-2">
+        <div class="card-header"><span class="header-icon">⚙️</span><h3>Update Complaint</h3></div>
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('update_complaint', complaint_id=c.complaint_id) }}">
+            <div class="form-group">
+              <label for="status">Status</label>
+              <select name="status" id="status" class="form-control">
+                {% for s in statuses %}
+                  <option value="{{ s }}" {% if c.status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="priority_u">Priority</label>
+              <select name="priority" id="priority_u" class="form-control">
+                {% for p in priorities %}
+                  <option value="{{ p }}" {% if c.get('priority','Medium') == p %}selected{% endif %}>{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% if officers %}
+            <div class="form-group">
+              <label for="assigned_to">Assign Officer</label>
+              <select name="assigned_to" id="assigned_to" class="form-control">
+                <option value="">— Not Assigned —</option>
+                {% for o in officers %}
+                  <option value="{{ o._id }}" {% if c.assigned_to and c.assigned_to.get('id') == o._id|string %}selected{% endif %}>
+                    {{ o.name }} ({{ o.village }})
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+            <div class="form-group">
+              <label for="note">Update Note</label>
+              <textarea name="note" id="note" class="form-control" rows="3"
+                        placeholder="Add a note about this status change…"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">✅ Update Status</button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Timeline -->
+      <div class="card">
+        <div class="card-header"><span class="header-icon">📅</span><h3>Timeline</h3></div>
+        <div class="card-body">
+          <div class="timeline" id="timeline">
+            {% for t in c.get('timeline', []) | reverse %}
+            <div class="timeline-item {% if t.status == 'Resolved' %}resolved{% elif t.status == 'Rejected' %}rejected{% endif %}">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-header">
+                  <span class="timeline-status">{{ t.status }}</span>
+                  <span class="timeline-time">{{ t.timestamp.strftime('%d %b, %H:%M') if t.timestamp else '' }}</span>
+                </div>
+                <div class="timeline-note">{{ t.note }}</div>
+                <div class="timeline-actor">— {{ t.actor }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Filed by (officers/admin only) -->
+      {% if current_user.role in ('officer', 'admin') %}
+      <div class="card mt-2">
+        <div class="card-header"><span class="header-icon">👤</span><h3>Filed By</h3></div>
+        <div class="card-body">
+          <div><span class="text-small text-muted">Name:</span> <strong>{{ c.user_name }}</strong></div>
+          <div><span class="text-small text-muted">Phone:</span> <strong>{{ c.user_phone }}</strong></div>
+          {% if c.user_email %}
+          <div><span class="text-small text-muted">Email:</span> <strong>{{ c.user_email }}</strong></div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+socket.emit('join_complaint', { complaint_id: '{{ c.complaint_id }}' });
+
+socket.on('new_comment', data => {
+  if (data.complaint_id !== '{{ c.complaint_id }}') return;
+  // Reload page to show new comment
+  window.location.reload();
+});
+
+// Star rating
+function setRating(val) {
+  document.getElementById('ratingInput').value = val;
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('active', i < val);
+  });
+}
+document.querySelectorAll('.star').forEach(s => {
+  s.addEventListener('mouseover', () => {
+    const v = parseInt(s.dataset.val);
+    document.querySelectorAll('.star').forEach((st, i) => st.style.color = i < v ? '#F5A623' : '#D0C0A8');
+  });
+  s.addEventListener('mouseout', () => {
+    const cur = parseInt(document.getElementById('ratingInput')?.value || 0);
+    document.querySelectorAll('.star').forEach((st, i) => st.style.color = i < cur ? '#F5A623' : '#D0C0A8');
+  });
+});
+</script>
+{% endblock %}

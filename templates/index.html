@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Home – Digital Gram Samadhan Portal{% endblock %}
+
+{% block content %}
+<!-- ── Hero ──────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container hero-content">
+    <div class="hero-badge">🇮🇳 Digital India Initiative</div>
+    <h1>आपकी समस्या, हमारी <span>जिम्मेदारी</span></h1>
+    <p class="hero-subtitle">
+      File, track, and resolve your village grievances digitally. Connect directly
+      with your Gram Panchayat officers in 9 regional languages.
+    </p>
+    <div class="hero-actions">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('new_complaint') }}" class="btn btn-primary btn-lg">📝 File a Complaint</a>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-outline btn-lg" style="color:#fff;border-color:rgba(255,255,255,0.5);">🏠 My Dashboard</a>
+      {% else %}
+        <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">📝 Register Now – Free</a>
+        <a href="{{ url_for('login') }}" class="btn btn-outline btn-lg" style="color:#fff;border-color:rgba(255,255,255,0.5);">🔑 Login</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Live Stats ─────────────────────────────────────────────────── -->
+<div class="stats-strip">
+  <div class="container">
+    <div class="stats-strip-inner">
+      <div>
+        <div class="strip-stat-number">{{ stats.total }}</div>
+        <div class="strip-stat-label">Complaints Filed</div>
+      </div>
+      <div>
+        <div class="strip-stat-number" style="color:var(--forest);">{{ stats.resolved }}</div>
+        <div class="strip-stat-label">Complaints Resolved</div>
+      </div>
+      <div>
+        <div class="strip-stat-number" style="color:var(--navy-light);">{{ stats.citizens }}</div>
+        <div class="strip-stat-label">Citizens Registered</div>
+      </div>
+      <div>
+        <div class="strip-stat-number" style="color:var(--earth-light);">{{ stats.villages }}</div>
+        <div class="strip-stat-label">Villages Connected</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── How It Works ───────────────────────────────────────────────── -->
+<section style="padding: 3rem 0; background: var(--cream);">
+  <div class="container">
+    <h2 class="text-center mb-3" style="color:var(--navy);">How It Works</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1.5rem; text-align:center;">
+      {% for step in [
+        ('📝', '1. Register', 'Create your free account with your phone number and village details.'),
+        ('🗣️', '2. File Complaint', 'Describe your issue in any of 9 Indian languages, with voice or text.'),
+        ('🔔', '3. Get Updates', 'Receive SMS and email updates as your complaint progresses.'),
+        ('✅', '4. Resolution', 'Track resolution and rate your experience with the Panchayat.'),
+      ] %}
+      <div class="card" style="padding:1.75rem 1.25rem;">
+        <div style="font-size:2.5rem; margin-bottom:0.75rem;">{{ step[0] }}</div>
+        <h3 style="font-size:1rem; margin-bottom:0.5rem; color:var(--navy);">{{ step[1] }}</h3>
+        <p style="font-size:0.85rem; color:var(--warm-gray);">{{ step[2] }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Categories ─────────────────────────────────────────────────── -->
+<section style="padding: 3rem 0; background:#fff;">
+  <div class="container">
+    <h2 class="text-center mb-3" style="color:var(--navy);">Complaint Categories</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap:1rem;">
+      {% set cat_icons = {
+        'Roads & Infrastructure': '🛣️',
+        'Water Supply': '💧',
+        'Electricity': '⚡',
+        'Sanitation & Drainage': '🚰',
+        'Education': '📚',
+        'Health Services': '🏥',
+        'Land & Property': '🏘️',
+        'Agriculture Support': '🌾',
+        'Social Welfare': '🤝',
+        'Public Safety': '🛡️',
+        'Other': '📌',
+      } %}
+      {% for cat in categories %}
+        <a href="{{ url_for('complaints_list', category=cat) }}"
+           class="card" style="padding:1.25rem; text-align:center; text-decoration:none; transition:transform 0.2s;">
+          <div style="font-size:2rem; margin-bottom:0.5rem;">{{ cat_icons.get(cat, '📌') }}</div>
+          <div style="font-size:0.82rem; font-weight:600; color:var(--navy);">{{ cat }}</div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Languages ──────────────────────────────────────────────────── -->
+<section style="padding: 2.5rem 0; background:var(--saffron-pale); border-top:2px solid var(--border);">
+  <div class="container text-center">
+    <h2 style="color:var(--navy); margin-bottom:0.75rem;">9 Languages Supported</h2>
+    <p style="color:var(--warm-gray); margin-bottom:1.25rem; font-size:0.9rem;">File your complaint in your mother tongue</p>
+    <div style="display:flex; flex-wrap:wrap; gap:0.75rem; justify-content:center;">
+      {% for code, name in languages.items() %}
+        <span style="background:#fff; border:1.5px solid var(--border); padding:0.4rem 1rem; border-radius:999px; font-size:0.875rem; font-weight:600; color:var(--navy);">{{ name }}</span>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ── Recently Resolved ──────────────────────────────────────────── -->
+{% if recent %}
+<section style="padding:3rem 0; background:var(--cream);">
+  <div class="container">
+    <h2 class="mb-3" style="color:var(--navy);">Recently Resolved ✅</h2>
+    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;">
+      {% for c in recent %}
+      <div class="card" style="padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+          <span class="badge badge-resolved">✅ Resolved</span>
+          <span class="text-small text-muted">{{ c.village }}</span>
+        </div>
+        <h4 style="font-size:0.95rem; color:var(--navy); margin-bottom:0.25rem;">{{ c.title | truncate(60) }}</h4>
+        <p class="text-small text-muted">{{ c.category }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- ── CTA ────────────────────────────────────────────────────────── -->
+{% if not current_user.is_authenticated %}
+<section style="padding:3rem 0; background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 100%); text-align:center;">
+  <div class="container">
+    <h2 style="color:#fff; margin-bottom:0.75rem;">अपनी आवाज़ उठाएं – Raise Your Voice</h2>
+    <p style="color:rgba(255,255,255,0.75); margin-bottom:1.5rem;">Join thousands of citizens digitally connected with their Gram Panchayat.</p>
+    <a href="{{ url_for('register') }}" class="btn btn-primary btn-lg">Register Free Today</a>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

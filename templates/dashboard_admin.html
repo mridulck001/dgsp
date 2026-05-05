@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard – DGSP{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="{{ url_for('index') }}">Home</a><span class="breadcrumb-sep">›</span><span>Admin Dashboard</span>
+    </div>
+    <h1>⚙️ Admin Dashboard</h1>
+    <p>System overview – all villages, all complaints</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Top stats -->
+  <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+    <div class="stat-card saffron"><div class="stat-number">{{ total }}</div><div class="stat-label">Total Complaints</div></div>
+    <div class="stat-card blue"><div class="stat-number">{{ counts.get('Submitted',0) }}</div><div class="stat-label">Submitted</div></div>
+    <div class="stat-card earth"><div class="stat-number">{{ counts.get('In Progress',0) }}</div><div class="stat-label">In Progress</div></div>
+    <div class="stat-card green"><div class="stat-number">{{ counts.get('Resolved',0) }}</div><div class="stat-label">Resolved</div></div>
+  </div>
+
+  <!-- Quick links -->
+  <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+    <a href="{{ url_for('admin_users') }}"      class="btn btn-navy">👥 Manage Users</a>
+    <a href="{{ url_for('admin_analytics') }}"  class="btn btn-outline">📊 Analytics</a>
+    <a href="{{ url_for('complaints_list') }}"  class="btn btn-outline">📋 All Complaints</a>
+    <a href="{{ url_for('export_complaints') }}" class="btn btn-success">⬇️ Export JSON</a>
+  </div>
+
+  <!-- Charts row -->
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+    <div class="card">
+      <div class="card-header"><span class="header-icon">📊</span><h3>Complaints by Status</h3></div>
+      <div class="card-body"><div class="chart-container"><canvas id="statusChart"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="header-icon">🗂️</span><h3>Complaints by Category</h3></div>
+      <div class="card-body"><div class="chart-container"><canvas id="catChart"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- Recent complaints & users -->
+  <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:1.5rem;">
+    <div class="card">
+      <div class="card-header">
+        <span class="header-icon">📋</span><h3>Recent Complaints</h3>
+        <a href="{{ url_for('complaints_list') }}" style="margin-left:auto; color:rgba(255,255,255,0.75); font-size:0.82rem;">View All →</a>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Village</th></tr></thead>
+            <tbody>
+              {% for c in recent_complaints %}
+              <tr>
+                <td><a href="{{ url_for('view_complaint', complaint_id=c.complaint_id) }}" class="complaint-id">{{ c.complaint_id }}</a></td>
+                <td style="max-width:160px;">{{ c.title | truncate(40) }}</td>
+                <td>
+                  {% set s = c.status | lower | replace(' ', '-') %}
+                  <span class="badge badge-{{ s }}">{{ c.status }}</span>
+                </td>
+                <td class="text-small text-muted">{{ c.village }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="header-icon">👥</span><h3>New Users</h3>
+        <a href="{{ url_for('admin_users') }}" style="margin-left:auto; color:rgba(255,255,255,0.75); font-size:0.82rem;">View All →</a>
+      </div>
+      <div class="card-body" style="padding:0;">
+        {% for u in recent_users %}
+        <div style="display:flex; align-items:center; gap:0.75rem; padding:0.85rem 1rem; border-bottom:1px solid var(--border);">
+          <div style="width:36px; height:36px; background:var(--saffron); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.9rem; flex-shrink:0;">
+            {{ u.name[0].upper() }}
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; font-size:0.88rem; color:var(--navy);">{{ u.name }}</div>
+            <div style="font-size:0.75rem; color:var(--warm-gray);">{{ u.village }} · {{ u.phone }}</div>
+          </div>
+          <span class="badge badge-role-{{ u.role }}">{{ u.role }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const statusData = {{ counts | tojson }};
+const catData    = {{ by_cat | tojson }};
+
+const palette = ['#1565C0','#E65100','#6A1B9A','#1B5E20','#424242','#B71C1C'];
+
+new Chart(document.getElementById('statusChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(statusData),
+    datasets: [{ data: Object.values(statusData), backgroundColor: palette, borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 12 } } } }
+});
+
+const catColors = ['#FF6B00','#1565C0','#1B5E20','#6A1B9A','#E65100','#B71C1C','#00838F','#4E342E','#37474F','#00695C','#546E7A'];
+new Chart(document.getElementById('catChart'), {
+  type: 'bar',
+  data: {
+    labels: Object.keys(catData),
+    datasets: [{ data: Object.values(catData), backgroundColor: catColors, borderRadius: 5 }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: { x: { grid: { display: false } }, y: { ticks: { font: { size: 10 } } } }
+  }
+});
+</script>
+{% endblock %}

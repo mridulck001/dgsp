@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Login – DGSP{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-circle">🏛️</div>
+      <h1>Welcome Back</h1>
+      <p>Login to your Gram Samadhan account</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=True) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">
+          <span>{{ message }}</span>
+          <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}" novalidate>
+      <div class="form-group">
+        <label for="identifier" class="required">Phone Number or Email</label>
+        <input type="text" id="identifier" name="identifier" class="form-control"
+               placeholder="9876543210 or you@example.com"
+               value="{{ request.form.get('identifier', '') }}"
+               autocomplete="username" required>
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="required">Password</label>
+        <div style="position:relative;">
+          <input type="password" id="password" name="password" class="form-control"
+                 placeholder="Enter your password" autocomplete="current-password" required
+                 style="padding-right:3rem;">
+          <button type="button" onclick="togglePass()" title="Show/hide password"
+                  style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--warm-gray);" id="passToggle">👁️</button>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; font-size:0.875rem;">
+        <label style="display:flex; align-items:center; gap:0.4rem; cursor:pointer; font-weight:400; color:var(--warm-gray);">
+          <input type="checkbox" name="remember"> Remember me
+        </label>
+        <a href="#" style="color:var(--saffron);">Forgot password?</a>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg">🔑 Login</button>
+    </form>
+
+    <div class="auth-divider">or</div>
+
+    <div class="auth-footer">
+      Don't have an account?
+      <a href="{{ url_for('register') }}" style="font-weight:600;">Register here →</a>
+    </div>
+
+    <div style="margin-top:1.25rem; padding:0.85rem; background:var(--saffron-pale); border-radius:var(--radius); font-size:0.8rem; color:var(--warm-gray); text-align:center;">
+      <strong>Demo credentials:</strong><br>
+      Admin: 9000000000 / Admin@123
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePass() {
+  const inp = document.getElementById('password');
+  const btn = document.getElementById('passToggle');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁️' : '🙈';
+}
+</script>
+{% endblock %}

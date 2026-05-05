@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="{{ session.get('lang', 'en') }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Digital Gram Samadhan Portal – Connecting rural citizens with Panchayat officers for effective grievance redressal.">
+  <title>{% block title %}Digital Gram Samadhan Portal{% endblock %}</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏛️</text></svg>">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  <!-- Chart.js (lazy-loaded only when needed) -->
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Ashoka Stripe ─────────────────────────────────────────────── -->
+<div class="gov-stripe"></div>
+
+<!-- ── Navbar ────────────────────────────────────────────────────── -->
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+  <div class="container navbar-inner">
+
+    <a href="{{ url_for('index') }}" class="navbar-brand">
+      <span class="logo-icon" aria-hidden="true">🏛️</span>
+      <span class="brand-text">
+        <span class="brand-name">Gram Samadhan</span>
+        <span class="brand-sub">Digital Grievance Portal</span>
+      </span>
+    </a>
+
+    <button class="navbar-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+      <span class="hamburger">
+        <span></span><span></span><span></span>
+      </span>
+    </button>
+
+    <ul class="navbar-nav" id="navMenu">
+      {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('dashboard') }}"
+               class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+               🏠 Dashboard</a></li>
+
+        <li><a href="{{ url_for('complaints_list') }}"
+               class="nav-link {% if 'complaint' in request.endpoint %}active{% endif %}">
+               📋 Complaints</a></li>
+
+        {% if current_user.role == 'citizen' %}
+          <li><a href="{{ url_for('new_complaint') }}" class="nav-link nav-btn">+ File Complaint</a></li>
+        {% endif %}
+
+        {% if current_user.role == 'admin' %}
+          <li><a href="{{ url_for('admin_users') }}"
+                 class="nav-link {% if 'admin' in request.endpoint %}active{% endif %}">
+                 ⚙️ Admin</a></li>
+        {% endif %}
+
+        <li><a href="{{ url_for('profile') }}"
+               class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">
+               👤 {{ current_user.name | truncate(14, True, '…') }}</a></li>
+
+        <li><a href="{{ url_for('logout') }}" class="nav-link">🚪 Logout</a></li>
+      {% else %}
+        <li><a href="{{ url_for('index') }}" class="nav-link">Home</a></li>
+        <li><a href="{{ url_for('login') }}" class="nav-link">Login</a></li>
+        <li><a href="{{ url_for('register') }}" class="nav-link nav-btn">Register</a></li>
+      {% endif %}
+    </ul>
+
+  </div>
+</nav>
+
+<!-- ── Flash Messages ─────────────────────────────────────────────── -->
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% if messages %}
+    <div class="container" style="padding-top: 1rem;">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" role="alert">
+          <span>
+            {% if category == 'success' %}✅{% elif category == 'danger' %}❌
+            {% elif category == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+          </span>
+          <span>{{ message }}</span>
+          <button class="alert-close" onclick="this.parentElement.remove()" aria-label="Close">×</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ── Main Content ───────────────────────────────────────────────── -->
+<main class="main-content" id="main">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ── Footer ────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <h3>🏛️ Digital Gram Samadhan Portal</h3>
+        <p>Empowering rural citizens to connect with Gram Panchayat officers for swift and transparent grievance redressal. A Digital India initiative.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Quick Links</h4>
+        <ul>
+          <li><a href="{{ url_for('index') }}">Home</a></li>
+          {% if current_user.is_authenticated %}
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('complaints_list') }}">All Complaints</a></li>
+          {% else %}
+            <li><a href="{{ url_for('login') }}">Login</a></li>
+            <li><a href="{{ url_for('register') }}">Register</a></li>
+          {% endif %}
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Categories</h4>
+        <ul>
+          {% for cat in ['Roads & Infrastructure', 'Water Supply', 'Electricity', 'Education', 'Health Services'] %}
+            <li><a href="{{ url_for('complaints_list', category=cat) }}">{{ cat }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Support</h4>
+        <ul>
+          <li><a href="#">Help Centre</a></li>
+          <li><a href="#">Privacy Policy</a></li>
+          <li><a href="#">Terms of Use</a></li>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">RTI</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© {{ now.year }} Digital Gram Samadhan Portal | Government of India Initiative</span>
+      <span>Designed for Bharat 🇮🇳 | Powered by Flask &amp; MongoDB</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ── Scripts ────────────────────────────────────────────────────── -->
+<script>
+  // Mobile nav toggle
+  const toggle = document.getElementById('navToggle');
+  const menu   = document.getElementById('navMenu');
+  toggle?.addEventListener('click', () => {
+    const open = menu.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', open);
+  });
+
+  // Auto-dismiss alerts after 6s
+  document.querySelectorAll('.alert').forEach(el => {
+    setTimeout(() => el.style.opacity === '' && el.remove(), 6000);
+  });
+</script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

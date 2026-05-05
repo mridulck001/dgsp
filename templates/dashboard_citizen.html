@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – DGSP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="{{ url_for('index') }}">Home</a>
+      <span class="breadcrumb-sep">›</span>
+      <span>Dashboard</span>
+    </div>
+    <h1>👋 Welcome, {{ current_user.name }}</h1>
+    <p>{{ current_user.village }}, {{ current_user.district }} | Citizen Portal</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Quick action -->
+  <div style="display:flex; justify-content:flex-end; margin-bottom:1rem;">
+    <a href="{{ url_for('new_complaint') }}" class="btn btn-primary btn-lg">
+      📝 File New Complaint
+    </a>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));">
+    <div class="stat-card blue">
+      <div class="stat-number">{{ counts.get('Submitted', 0) }}</div>
+      <div class="stat-label">Submitted</div>
+    </div>
+    <div class="stat-card saffron">
+      <div class="stat-number">{{ counts.get('Under Review', 0) + counts.get('In Progress', 0) }}</div>
+      <div class="stat-label">In Progress</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-number">{{ counts.get('Resolved', 0) }}</div>
+      <div class="stat-label">Resolved</div>
+    </div>
+    <div class="stat-card earth">
+      <div class="stat-number">{{ counts.values() | sum }}</div>
+      <div class="stat-label">Total Filed</div>
+    </div>
+  </div>
+
+  <!-- Recent complaints -->
+  <div class="card mt-2">
+    <div class="card-header">
+      <span class="header-icon">📋</span>
+      <h3>My Recent Complaints</h3>
+      <a href="{{ url_for('complaints_list') }}" style="margin-left:auto; color:rgba(255,255,255,0.75); font-size:0.85rem;">View All →</a>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if complaints %}
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Complaint ID</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Filed On</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in complaints %}
+              <tr>
+                <td><span class="complaint-id">{{ c.complaint_id }}</span></td>
+                <td style="max-width:200px;">{{ c.title | truncate(50) }}</td>
+                <td><span class="text-small">{{ c.category }}</span></td>
+                <td>
+                  {% set s = c.status | lower | replace(' ', '-') %}
+                  <span class="badge badge-{{ s }}">{{ c.status }}</span>
+                </td>
+                <td class="text-small text-muted">{{ c.created_at.strftime('%d %b %Y') }}</td>
+                <td>
+                  <a href="{{ url_for('view_complaint', complaint_id=c.complaint_id) }}" class="btn btn-navy btn-sm">View</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>No complaints yet</h3>
+          <p>You haven't filed any complaints. Click the button above to get started.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Tips -->
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:1rem; margin-top:1.5rem;">
+    <div class="card" style="border-left:4px solid var(--saffron); padding:1.25rem;">
+      <h4 style="margin-bottom:0.5rem; font-size:0.95rem;">💡 Tip: Voice Complaint</h4>
+      <p class="text-small text-muted">You can file a complaint using your voice! Click "File New Complaint" and use the microphone button to speak in your language.</p>
+    </div>
+    <div class="card" style="border-left:4px solid var(--forest); padding:1.25rem;">
+      <h4 style="margin-bottom:0.5rem; font-size:0.95rem;">📱 SMS Alerts</h4>
+      <p class="text-small text-muted">We'll send you an SMS whenever your complaint status changes. Make sure your phone number is up-to-date in your profile.</p>
+    </div>
+    <div class="card" style="border-left:4px solid var(--navy-light); padding:1.25rem;">
+      <h4 style="margin-bottom:0.5rem; font-size:0.95rem;">⭐ Rate Resolution</h4>
+      <p class="text-small text-muted">Once your complaint is resolved, please take a moment to rate your experience. Your feedback improves the system!</p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
