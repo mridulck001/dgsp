@@ -14,6 +14,7 @@ import json
 import uuid
 import logging
 import requests
+import tempfile
 from io import BytesIO
 from datetime import datetime, timedelta
 from functools import wraps
@@ -35,6 +36,12 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from bson import ObjectId
 from bson.errors import InvalidId
+
+try:
+    from pydub import AudioSegment
+    HAS_PYDUB = True
+except ImportError:
+    HAS_PYDUB = False
 
 # ─── Load environment ────────────────────────────────────────────────────────
 load_dotenv()
@@ -246,26 +253,6 @@ def upload_to_cloudinary(file_obj, folder="dgsp"):
     except Exception as e:
         logger.warning("Cloudinary upload failed: %s", e)
         return None
-
-
-def sarvam_speech_to_text(audio_bytes: bytes, lang: str = "hi-IN") -> str:
-    """Call Sarvam AI STT API; returns transcript or empty string."""
-    api_key = os.getenv("SARVAM_API_KEY")
-    if not api_key:
-        return ""
-    try:
-        resp = requests.post(
-            "https://api.sarvam.ai/speech-to-text",
-            headers={"api-subscription-key": api_key},
-            files={"file": ("audio.wav", audio_bytes, "audio/wav")},
-            data={"language_code": lang, "model": "saarika:v2"},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        return resp.json().get("transcript", "")
-    except Exception as e:
-        logger.warning("Sarvam STT failed: %s", e)
-        return ""
 
 
 def auto_categorize(text: str) -> str:
@@ -772,16 +759,133 @@ def complaints_list():
 @login_required
 @role_required("citizen")
 def voice_complaint():
-    """Accept audio file, transcribe via Sarvam AI, return JSON."""
-    audio = request.files.get("audio")
-    lang  = request.form.get("lang", "hi-IN")
-    if not audio:
-        return jsonify({"error": "No audio file provided."}), 400
-    transcript = sarvam_speech_to_text(audio.read(), lang=lang)
-    if not transcript:
-        return jsonify({"error": "Could not transcribe audio. Please try again."}), 500
-    category = auto_categorize(transcript)
-    return jsonify({"transcript": transcript, "suggested_category": category})
+    """Accept audio file, chunk if >30s, transcribe via Sarvam AI, return JSON."""
+    sarvam_key = os.getenv("SARVAM_API_KEY")
+    language = request.form.get('lang', 'hi-IN')
+
+    if not sarvam_key:
+        return jsonify({'error': 'Sarvam API key is required. Provide it in the UI or set SARVAM_API_KEY env var.'}), 401
+
+    if 'audio' not in request.files:
+        return jsonify({'error': 'No audio file provided in request.'}), 400
+
+    file = request.files['audio']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected.'}), 400
+
+    SARVAM_API_URL = "https://api.sarvam.ai/speech-to-text"
+
+    try:
+        # Ephemeral file handling
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_audio:
+            file.save(temp_audio.name)
+            temp_filepath = temp_audio.name
+
+        # --- CHUNKING LOGIC FOR AUDIO > 30s ---
+        if HAS_PYDUB:
+            try:
+                audio = AudioSegment.from_file(temp_filepath)
+                # 29 seconds (safe margin below 30s)
+                chunk_length_ms = 29 * 1000
+
+                # If audio is longer than 29s, process in chunks
+                if len(audio) > chunk_length_ms:
+                    chunks = [audio[i:i + chunk_length_ms]
+                              for i in range(0, len(audio), chunk_length_ms)]
+                    full_transcript = []
+
+                    for i, chunk in enumerate(chunks):
+                        # FIX: Skip chunks smaller than 500ms
+                        if len(chunk) < 500:
+                            logger.info(
+                                f"Skipping chunk {i} - too short ({len(chunk)}ms)")
+                            continue
+
+                        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as chunk_file:
+                            chunk.export(chunk_file.name, format="wav")
+                            with open(chunk_file.name, 'rb') as f:
+                                files = {
+                                    'file': (f"chunk_{i}.wav", f, 'audio/wav')}
+                                data = {
+                                    'language_code': language,
+                                    'model': 'saarika:v2.5',
+                                    'with_timestamps': 'false'
+                                }
+                                headers = {'api-subscription-key': sarvam_key}
+                                response = requests.post(
+                                    SARVAM_API_URL,
+                                    headers=headers,
+                                    files=files,
+                                    data=data,
+                                    timeout=60
+                                )
+                        os.remove(chunk_file.name)
+
+                        if response.status_code == 200:
+                            result = response.json()
+                            transcript = result.get(
+                                'transcript') or result.get('text') or ''
+                            if transcript:
+                                full_transcript.append(transcript.strip())
+                        else:
+                            # Clean up and bubble error if any chunk fails
+                            os.remove(temp_filepath)
+                            try:
+                                err_msg = response.json().get('message', response.text)
+                            except ValueError:
+                                err_msg = response.text
+                            return jsonify({'error': f'Sarvam API error on chunk {i+1}: {err_msg}'}), response.status_code
+
+                    os.remove(temp_filepath)
+                    merged_transcript = " ".join(full_transcript)
+                    category = auto_categorize(merged_transcript)
+                    return jsonify({'success': True, 'transcript': merged_transcript, 'suggested_category': category})
+
+            except Exception as e:
+                logger.warning(
+                    f"Pydub chunking failed (ffmpeg likely missing): {e}. Falling back to direct upload.")
+                pass  # Proceed to direct upload fallback
+
+        # DIRECT UPLOAD FALLBACK (For <30s files or missing ffmpeg)
+        with open(temp_filepath, 'rb') as f:
+            files = {'file': (file.filename, f, file.mimetype or 'audio/webm')}
+            data = {
+                'language_code': language,
+                'model': 'saarika:v2.5',
+                'with_timestamps': 'false'
+            }
+            headers = {'api-subscription-key': sarvam_key}
+            response = requests.post(
+                SARVAM_API_URL,
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=60
+            )
+
+        os.remove(temp_filepath)
+
+        if response.status_code == 200:
+            result = response.json()
+            transcript = result.get('transcript') or result.get('text') or ''
+            category = auto_categorize(transcript)
+            return jsonify({'success': True, 'transcript': transcript, 'suggested_category': category})
+        else:
+            try:
+                err_msg = response.json().get('message', response.text)
+            except ValueError:
+                err_msg = response.text
+
+            # Intercept the specific 30s limit error to guide the user to the fix
+            if "duration exceeds" in err_msg.lower() or "30 seconds" in err_msg.lower():
+                return jsonify({'error': 'Audio > 30s. To enable automatic chunking, run: "pip install pydub" AND install ffmpeg on your server.'}), 400
+
+            return jsonify({'error': f'Sarvam API error: {err_msg}'}), response.status_code
+
+    except Exception as e:
+        if 'temp_filepath' in locals() and os.path.exists(temp_filepath):
+            os.remove(temp_filepath)
+        return jsonify({'error': f'Transcription processing failed: {str(e)}'}), 500
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
