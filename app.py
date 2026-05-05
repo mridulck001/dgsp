@@ -5,6 +5,9 @@ A comprehensive rural grievance redressal platform for Indian villages.
 Single-file Flask application with MongoDB Atlas backend.
 """
 
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import re
 import json
@@ -42,9 +45,7 @@ app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.getenv("SECRET_KEY", "dev-secret-key-change-me"),
     MONGO_URI=os.getenv("MONGO_URI", "mongodb://localhost:27017/dgsp"),
-    RATELIMIT_STORAGE_URI=os.getenv(
-        "RATELIMIT_STORAGE_URI", os.getenv("MONGO_URI", "mongodb://localhost:27017/dgsp")
-    ),
+    RATELIMIT_STORAGE_URI=os.getenv("RATELIMIT_STORAGE_URI", "memory://"),
     # Mail
     MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
     MAIL_PORT=int(os.getenv("MAIL_PORT", 587)),
@@ -56,7 +57,13 @@ app.config.update(
 )
 
 # ─── Extensions ───────────────────────────────────────────────────────────────
-mongo   = PyMongo(app)
+# Added 500ms timeouts so the app doesn't hang if the DB is offline
+mongo   = PyMongo(app, serverSelectionTimeoutMS=500, connectTimeoutMS=500, socketTimeoutMS=500)
+
+# Fix for missing database name in MONGO_URI
+if mongo.db is None and mongo.cx is not None:
+    mongo.db = mongo.cx['dgsp']
+
 bcrypt  = Bcrypt(app)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
 mail    = Mail(app)
@@ -1051,6 +1058,9 @@ def server_error(e):
 def create_indexes():
     """Create MongoDB indexes for performance."""
     try:
+        # Force a quick connection check
+        mongo.cx.server_info() 
+        
         mongo.db.complaints.create_index([("complaint_id", 1)], unique=True)
         mongo.db.complaints.create_index([("user_id", 1)])
         mongo.db.complaints.create_index([("status", 1)])
