@@ -1207,5 +1207,6 @@ with app.app_context():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 5000))
+    # Check for PORT, then FLASK_RUN_PORT, and default to 7860 for Hugging Face
+    port = int(os.getenv("PORT", os.getenv("FLASK_RUN_PORT", 7860)))
     socketio.run(app, debug=os.getenv("FLASK_DEBUG", "True") == "True", host="0.0.0.0", port=port)
