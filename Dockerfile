@@ -31,4 +31,6 @@ ENV FLASK_RUN_HOST=0.0.0.0
 ENV PORT=7860
 
 # 10. Start the Flask application
-CMD ["python", "app.py"]
+# CMD ["python", "app.py"]
+# 10. Start the Flask application using Gunicorn with eventlet workers
+CMD ["gunicorn", "--worker-class", "eventlet", "-w", "1", "-b", "0.0.0.0:7860", "app:app"]
