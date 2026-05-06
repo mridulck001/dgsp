@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Manage Users – DGSP{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="container">
+    <div class="breadcrumb">
+      <a href="{{ url_for('index') }}">Home</a><span class="breadcrumb-sep">›</span>
+      <a href="{{ url_for('dashboard') }}">Admin Dashboard</a><span class="breadcrumb-sep">›</span>
+      <span>Manage Users</span>
+    </div>
+    <h1>👥 Manage Users</h1>
+    <p>View, filter, and manage all registered citizens and officers.</p>
+  </div>
+</div>
+
+<div class="container">
+  
+  <form method="GET" action="{{ url_for('admin_users') }}" class="filter-bar">
+    <div class="form-group">
+      <label for="q">Search</label>
+      <input type="text" id="q" name="q" class="form-control" placeholder="Name, phone, or village..." value="{{ q }}">
+    </div>
+    <div class="form-group">
+      <label for="role">Role</label>
+      <select id="role" name="role" class="form-control">
+        <option value="">All Roles</option>
+        <option value="citizen" {% if role_f == 'citizen' %}selected{% endif %}>Citizen</option>
+        <option value="officer" {% if role_f == 'officer' %}selected{% endif %}>Officer</option>
+        <option value="admin" {% if role_f == 'admin' %}selected{% endif %}>Admin</option>
+      </select>
+    </div>
+    <div class="form-group" style="flex: 0 0 auto;">
+      <button type="submit" class="btn btn-primary" style="height: 100%;">🔍 Filter</button>
+      <a href="{{ url_for('admin_users') }}" class="btn btn-outline" style="height: 100%;">Reset</a>
+    </div>
+  </form>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="header-icon">👥</span>
+      <h3>All Users ({{ total }})</h3>
+    </div>
+    <div class="card-body" style="padding:0;">
+      {% if users %}
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>User Details</th>
+                <th>Contact</th>
+                <th>Location</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in users %}
+              <tr>
+                <td>
+                  <div style="font-weight:600; color:var(--navy);">{{ u.name }}</div>
+                  <div class="text-small text-muted">Registered: {{ u.created_at.strftime('%d %b %Y') if u.created_at else '—' }}</div>
+                </td>
+                <td>
+                  <div>📞 {{ u.phone }}</div>
+                  {% if u.email %}<div class="text-small text-muted">✉️ {{ u.email }}</div>{% endif %}
+                </td>
+                <td>
+                  <div>{{ u.village }}</div>
+                  <div class="text-small text-muted">{{ u.district }}, {{ u.state }}</div>
+                </td>
+                <td>
+                  <span class="badge badge-role-{{ u.role }}">{{ u.role | capitalize }}</span>
+                </td>
+                <td>
+                  {% if u.get('is_active', True) %}
+                    <span class="badge badge-resolved">Active</span>
+                  {% else %}
+                    <span class="badge badge-rejected">Deactivated</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div style="display:flex; gap:0.5rem; align-items:center;">
+                    <form method="POST" action="{{ url_for('change_user_role', user_id=u._id) }}" style="display:inline-block;">
+                      <select name="role" class="form-control" style="padding:0.25rem 1.5rem 0.25rem 0.5rem; font-size:0.8rem; width:auto;" onchange="this.form.submit()">
+                        <option value="citizen" {% if u.role == 'citizen' %}selected{% endif %}>Citizen</option>
+                        <option value="officer" {% if u.role == 'officer' %}selected{% endif %}>Officer</option>
+                        <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Admin</option>
+                      </select>
+                    </form>
+
+                    <form method="POST" action="{{ url_for('toggle_user', user_id=u._id) }}" style="display:inline-block;">
+                      <button type="submit" class="btn btn-sm {% if u.get('is_active', True) %}btn-danger{% else %}btn-success{% endif %}">
+                        {% if u.get('is_active', True) %}Deactivate{% else %}Activate{% endif %}
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">👥</div>
+          <h3>No users found</h3>
+          <p>Try adjusting your search filters.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if pages > 1 %}
+  <div class="pagination">
+    {% for p in range(1, pages + 1) %}
+      <a href="{{ url_for('admin_users', page=p, q=q, role=role_f) }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
