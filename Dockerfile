@@ -28,7 +28,7 @@ EXPOSE 7860
 
 # 9. Set the environment variables required to run Flask on the correct port and host
 ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=7860
+ENV PORT=7860
 
 # 10. Start the Flask application
 CMD ["python", "app.py"]
